@@ -1,0 +1,275 @@
+{ "Steps": {
+    "Setup of project": {
+        "Script": "00_setup_project.sh",
+        "Syntax": "00_setup_project.sh /path/to/fastqfolder /path/to/my/outputdir_01 [/path/to/reference.fasta]"
+    },
+    "Read filtering": {
+        "Script": "001_A_quality_filter.sh / AAA_quality_check_raw.sh",
+        "Syntax": "AAA_quality_check_raw.sh [/path/to/reference.fasta]",
+        "Subscript": {
+            "Read filtering with Trimmomatic": {
+                "Script": "A03_trimmomatic.sh",
+                "Subscripts": {
+                    "run_trimmomatic.sh": {
+                        "Script": "run_trimmomatic.sh",
+                        "Parameters": {
+                            "Source":   "variant.config",
+                            "Details":  "# A standard set of quality filters is applied to the reads, however you have the option to manually add values for the removal of bad quality bases from the 3'end.\n# If READS1,2_TRIM are set, READS1 and READS2 are hard trimmed for the given number of bases from the 3'end (bp) e.g. READS1_TRIM=12 removes 12 bases from the 3'end\nelse an automated approach (sliding window is used, default setting:0,0)\nREADS1_TRIM=0\nREADS2_TRIM=0\nREADS1_TRIMF=0\nREADS2_TRIMF=0\n# set qual windows length (for both read pairs) (QUAL_WINDOW_1, QUAL_WINDOW_2), average quality within the window (QUAL_WINDOW_QUAL_1, QUAL_WINDOW_QUAL_2) and \n# minimum length of a fragment to be kept (shorter fragments will be discarded) (MIN_LENGTH_1, MIN_LENGTH_2)\nQUAL_WINDOW_1=5\nQUAL_WINDOW_2=5\nQUAL_WINDOW_QUAL_1=20\nQUAL_WINDOW_QUAL_2=20\nMIN_LENGTH_1=40\nMIN_LENGTH_2=40"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Read mapping": {
+        "Script": "002_A_mapping.sh",
+        "Subscripts": {
+            "setup reference": {
+                "Script": "B01_set_mapping_index.sh",
+                "Subscripts": {
+                    "Script":  "A01_bwa_build_index.sh",
+                    "Syntax ": "A01_bwa_build_index.sh ${REF_FA} $PATH_BWA_075 $PATH_BWA_075_INDEX $PATH_LOGS",
+                    "Command": "/bwa index -p ${PATH_INDEX}/bwa_index_$REF"
+                }
+            },
+            "run bwa mem": {
+                "Script": "B03_mapping_bwamem.sh",
+                "Subscripts": {
+                    "Script":  "run_bwamem2bam2.sh",
+                    "Syntax ": "run_bwamem2bam2.sh $PATH_PROJECTS_DATA/$PROJ_NAME $i $SYSTEM_CONFIG",
+                    "Commands": {
+                        "Read mapping": {
+                            "Command": "bwa mem -M -t 2 $TEMP/bwa_index/bwa_index_$REFNAME/$REFNAME $READ1 $READ2 >$TEMP/$OUTFILE.sam"
+                        },
+                        "sam to bam conversion and sorting": {
+                            "Command": "samtools view -bS $TEMP/$OUTFILE.sam | $PATH_SAMTOOLS/samtools sort - $TEMP/$OUTFILE"
+                        },
+                        "indexing bam file": {
+                            "Command": "samtools index $TEMP/$OUTFILE.bam $TEMP/$OUTFILE.bai"
+                        },
+                        "calculate mapping statistics": {
+                            "Picard (insert size)": {
+                                "Command": "java -jar $PATH_PICARD/picard.jar CollectInsertSizeMetrics I=$PATH_BWA_DATA/$OUTFILE.bam H=$PATH_BWA_DATA/${OUTFILE}.IS.pdf O=$PATH_BWA_DATA/${OUTFILE}.IS.txt"
+                            },
+                            "Samtools (coverage)": {
+                                "Command": "samtools depth $PATH_BWA_DATA/$OUTFILE.bam | awk '{sum+=$3; sumsq+=$3*$3} END { print \"map_average_cov\t\",sum/NR; print \"map_stdev_cov\t\",sqrt(sumsq/NR - (sum/NR)**2)}'"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "Variant calling": {
+        "Script": "003_A_variant_calling.sh",
+        "Syntax": "003_A_variant_calling.sh",
+        "Subscripts": {
+            "Script": "C01_calling.sh",
+                "Subscripts": {
+                    "run lofreq21": {
+                        "Script": "run_lofreq21.sh",
+                        "Syntax": "run_lofreq21.sh $REF_FA $BAM_MOD $PATH_LOFREQ21_DATA/$OUTDIR $PATH_LOFREQ21 $PATH_SAMTOOLS",
+                        "Commands": {
+                            "add indel qualities": {
+                                "Command": "lofreq indelqual --dindel -f $REF -o ${BAM_BASE}_lofreq21.bam $BAM"
+                            },
+                            "run lofreq": {
+                                "Command": "lofreq call --call-indels --min-cov 6 -f $REF -o ${BAM_BASE}_lofreq21.vcf ${BAM_BASE}_lofreq21.bam"
+                            }
+                        }
+                    },
+                    "run varscan": {
+                        "Script": "run_varscan.sh",
+                        "Syntax": "run_varscan.sh $REF_FA $BAM_MOD $PATH_VARSCAN_DATA/$OUTDIR $PATH_VARSCAN $PATH_SAMTOOLS",
+                        "Commands": {
+                            "sort bam file": {
+                                "Command": "samtools sort $BAM $BAM_BASE.sorted"
+                            },
+                            "create pileup file": {
+                                "Command": "samtools mpileup -C50 -d1000 -Ef $REF $BAM_BASE.sorted.bam >$BAM_BASE.mpileup"
+                            },
+                            "run pileup2snp": {
+                                "Command": "java -Xmx8g -jar $PATH_VARSCAN pileup2snp $BAM_BASE.mpileup -min-var-freq 0.001 >$BAM_BASE.snp"
+                            },
+                            "filter snp": {
+                                "Command": "java -jar $PATH_VARSCAN filter $BAM_BASE.snp --min-avg-qual 25 --min-var-freq 0.001 --min-strands2 2 --indel-file $BAM_BASE.filter.indel --output-file $BAM_BASE.filter.snp"
+                            },
+                            "run pileup2indel": {
+                                "Command": "java -Xmx8g -jar $PATH_VARSCAN pileup2indel $BAM_BASE.mpileup -min-var-freq 0.001 >$BAM_BASE.indel"
+                            },
+                            "filter indel": {
+                                "Command": "java -jar $PATH_VARSCAN filter $BAM_BASE.indel --min-avg-qual 25 --min-var-freq 0.001  --output-file $BAM_BASE.filter.indel"
+                            }
+                        }
+                    },
+                    "run pindel_025": {
+                        "Script": "run_pindel_025.sh",
+                        "Syntax": "run_pindel_025.sh $BAM_MOD $OUTDIR $PATH_PINDEL_025 $PATH_SAM2PINDEL_025 $REF_FA $PATH_SAMTOOLS $PATH_PINDEL_DATA_025 $INSERT_SIZE",
+                        "Commands": {
+                            "run sam2pindel": {
+                                "Command": "/samtools view $BAM | $PATH_PINDEL/sam2pindel - $OUTPUT/$BAM_BASE.pindel.txt $INSERT_SIZE E25_varcap 0 Illumina-PairEnd"
+                            },
+                            "run pindel": {
+                                "Command": "pindel -T 2 -f $PATH_REF -p $OUTPUT/$BAM_BASE.pindel.txt -c ALL -o $OUTPUT/$BAM_BASE"
+                            },
+                            "run pindel2vcf": {
+                                "D file": {
+                                    "Command": "pindel2vcf -G -p $OUTPUT/${BAM_BASE}_D -r $PATH_REF -R $REF_ID -d 20130121 -v $OUTPUT/${BAM_BASE}_D.vcf"
+                                },
+                                "SI file": {
+                                    "Command": "pindel2vcf -G -p $OUTPUT/${BAM_BASE}_SI -r $PATH_REF -R $REF_ID -d 20130121 -v $OUTPUT/${BAM_BASE}_SI.vcf"
+                                },
+                                "INV file": {
+                                    "Command": "pindel2vcf -G -p $OUTPUT/${BAM_BASE}_INV -r $PATH_REF -R $REF_ID -d 20130121 -v $OUTPUT/${BAM_BASE}_INV.vcf"
+                                },
+                                "TD file": {
+                                    "Command": "pindel2vcf -G -p $OUTPUT/${BAM_BASE}_TD -r $PATH_REF -R $REF_ID -d 20130121 -v $OUTPUT/${BAM_BASE}_TD.vcf"
+                                },
+                                "ALL file": {
+                                    "Command": "pindel2vcf -G -p $OUTPUT/${BAM_BASE} -r $PATH_REF -R $REF_ID -d 20130121 -v $OUTPUT/${BAM_BASE}_ALL.vcf"
+                                }
+                            }
+                        }
+                    },
+                    "run breakdancer": {
+                        "Script": "run_breakd_112_2013.sh",
+                        "Syntax": "run_breakd_112_2013.sh $BAM_MOD $OUTDIR $PATH_BREAKD $PATH_BAM2CONF $PATH_SAMTOOLS $PATH_PICARD $PATH_BREAKD_DATA $PATH_GD_GRAPH_HISTOGRAM $READLENGTH",
+                        "Commands": {
+                            "replace/add read group header (Picard)": {
+                                "Command": "java -Xmx4g -Djava.io.tmpdir=/tmp -jar $PATH_PICARD/picard.jar AddOrReplaceReadGroups I=$SAM O=$OUTDIR/$SAM_BASE.bam LB=D PL=illumina PU=S SM=B VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=true"
+                            },
+                            "Prepare config file for breakdancer": {
+                                "Command": "perl -I $PATH_BAM2CONF -I $PATH_GD_GRAPH_HISTOGRAM $PATH_BAM2CONF/bam2cfg_2014.pl $OUTDIR/$SAM_BASE.bam >$OUTDIR/$SAM_BASE.conf"
+                            },
+                            "Substitute the min_insert_size to be not shorter than the readlength -> lower:READLENGTH": {
+                                "Command": "sed -i \"s/lower\\:[0-9]*\\.*[0-9]*/lower\\:$MIN_INSERT_SIZE/\" $OUTDIR/$SAM_BASE.conf"
+                            },
+                            "run breakdancer max on config file": {
+                                "Command": "breakdancer-max -s 15 -q 35 -r 8 $PATH_BREAKD_DATA/$OUTDIR/$SAM_BASE.conf >$OUTDIR/$SAM_BASE.ctx"
+                            },
+                            "postfilter output file due to cutoff values (last column of ctx file), remove if value does not exist, NA or lower than 1": {
+                                "Command": "..."
+                            }
+                        }
+                    },
+                    "run delly": {
+                        "Script": "run_delly_072.sh",
+                        "Syntax": "run_delly_072.sh $BAM_MOD $OUTDIR $REF_FA $PATH_DELLY_072 $PATH_DELLY_072_DATA $INSERT_SIZE $REF_FA_MOD",
+                        "Commands": {
+                            "deletions": {
+                                "Command": "delly_v0.7.2_parallel_linux_x86_64bit -t DEL -i 2000 -o $BAM_NAME.del.vcf -g $REF $BAM"
+                            },
+                            "insertions": {
+                                "Command": "delly_v0.7.2_parallel_linux_x86_64bit -t INS -i 2000 -o $BAM_NAME.ins.vcf -g $REF $BAM"
+                            },
+                            "duplications": {
+                                "Command": "delly_v0.7.2_parallel_linux_x86_64bit -t DUP -i 2000 -o $BAM_NAME.dup.vcf -g $REF $BAM"
+                            },
+                            "trabslocations": {
+                                "Command": "delly_v0.7.2_parallel_linux_x86_64bit -t TRA -i 2000 -o $BAM_NAME.tra.vcf -g $REF $BAM"
+                            },
+                            "inversions": {
+                                "Command": "delly_v0.7.2_parallel_linux_x86_64bit -t INV -i 2000 -o $BAM_NAME.inv.vcf -g $REF $BAM"
+                            }
+                        }
+                    },
+                    "run cortex_var": {
+                        "Script": "run_cortex_grid.sh",
+                        "Syntax": "run_cortex_grid.sh $BAM_MOD $OUTDIR $i $BAM_BASE",
+                        "Commands": {
+                            "replace/add read group header": {
+                                "Command": "java -Xmx4g -Djava.io.tmpdir=/tmp -jar $PATH_PICARD/picard.jar AddOrReplaceReadGroups I=$BAM_MOD O=${BAM_BASE}${i}.rgroup.bam LB=D PL=illumina PU=S SM=B VALIDATION_STRINGENCY=LENIENT CREATE_INDEX=false"
+                            },
+                            "convert bam file to fastq reads": {
+                                "Command": "java -jar -Xmx3g $PATH_PICARD/picard.jar SamToFastq INPUT=${BAM_BASE}${i}.rgroup.bam FASTQ=${BAM_BASE}${i}_1.fastq SECOND_END_FASTQ=${BAM_BASE}${i}_2.fastq INCLUDE_NON_PF_READS=true VALIDATION_STRINGENCY=SILENT"
+                            },
+                            "run cortex": {
+                                "Script": "run_cortex.sh",
+                                "Syntax": "run_cortex.sh  $PATH_CORTEX_DATA/$OUTDIR/${BAM_BASE}${i}_1.fastq $PATH_CORTEX_DATA/$OUTDIR/${BAM_BASE}${i}_2.fastq $PATH_CORTEX_DATA/$OUTDIR/$BAM_BASE.$i $PATH_CORTEX_DATA $REF_FA $PATH_VCFTOOLS $PATH_STAMPY $PATH_CORTEX_DIR $PATH_CORTEX $PATH_RUN_CALLS $PATH_SCRIPTS",
+                                "Subscripts": {
+                                    "prepare cortex index": {
+                                        "Script": "00_cortex_prepare.sh",
+                                        "Syntax": "00_cortex_prepare.sh $PATH_CORTEX_DATA $REF $PATH_VCFTOOLS $PATH_STAMPY $PATH_CORTEX_DIR $PATH_CORTEX $PATH_RUN_CALLS",
+                                        "Commands": {
+                                            "build reference genome binaries": {
+                                                "kmer 31": {
+                                                    "Command": "cortex_var_31_c1 --kmer_size 31 --mem_height 21 --mem_width 100 --se_list file_listing_fasta --max_read_len 10000 --dump_binary ref/ref.k31.ctx --sample_id REF"
+                                                },
+                                                "kmer 51": {
+                                                    "Command": "cortex_var_63_c1 --kmer_size 61 --mem_height 21 --mem_width 100 --se_list file_listing_fasta --max_read_len 10000 --dump_binary ref/ref.k61.ctx --sample_id REF"
+                                                }
+                                            },
+                                            "build stampy hash of the reference genome": {
+                                                "G": {
+                                                    "Command": "stampy.py -G $REF_NAME $REF"
+                                                },
+                                                "g": {
+                                                    "Command": "stampy.py -g $REF_NAME -H $REF_NAME"
+                                                }
+                                            }
+                                        }   
+                                    },
+                                    "sed substituion": {
+                                        "Command1": "sed -i 's#^.*$#'$READS1'#' pe_filelist1",
+                                        "Command2": "sed -i 's#^.*$#'$READS2'#' pe_filelist2"
+                                    },
+                                    "run run_calls.pl": {
+                                        "Command": "perl  $PATH_RUN_CALLS/run_calls.pl --first_kmer 31 --last_kmer 61 --kmer_step 30 --fastaq_index ${REF_NAME}_index --auto_cleaning yes --bc yes --pd no --outdir $OUTDIR --outvcf $READ_NAME --ploidy 1 --stampy_hash $REF_NAME --stampy_bin $PATH_STAMPY/stampy.py --list_ref_fasta file_listing_fasta --refbindir ref/ --genome_size 2414465 --max_read_len 10000 --qthresh 5 --mem_height 21 --mem_width 100 --vcftools_dir $PATH_VCFTOOLS --do_union yes --ref CoordinatesAndInCalling --workflow independent --logfile log.txt,f"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+        }
+    },
+    "Collecting and filtering variants": {
+        "Script": "004_A_generate_vcfs.sh",
+        "Syntax": "004_A_generate_vcfs.sh",
+        "Subscripts": {
+            "collect raw vcfs": {
+                "Script": "D01_collect_raw_variant_files.sh",
+                "Syntax": "D01_collect_raw_variant_files.sh",
+                "Commands": {
+                    "varscan": {
+                        "Command": "ITER=$( basename $file | grep -o \"bwa_[0-9]*[\\_]\" | grep -o '[0-9]*' ) && cp $file $RAW_VARIANTS_FOLDER/varscan_v${ITER}_$(basename $file);"
+                    },
+                    "lofreq21": {
+                        "Command": "for file in $PATH_LOFREQ21_DATA/$PATH_DATA/$BAM_NAME_BASE*.vcf; do ITER=$( basename $file | grep -o \"bwa_[0-9]*[\\._]\" | grep -o '[0-9]*' ) && cp $file $RAW_VARIANTS_FOLDER/lofreq21_v${ITER}_$(basename $file); done" 
+                    },
+                    "breakdancer": {
+                        "Command": "for file in $PATH_BREAKD_DATA/$PATH_DATA/$BAM_NAME_BASE*.ctx; do   ITER=$( basename $file | grep -o \"bwa_[0-9]*[\\._]\" | grep -o '[0-9]*' ) && cp $file $RAW_VARIANTS_FOLDER/breakd_v${ITER}_$(basename $file); done" 
+                    },
+                    "pindel": {
+                        "Command": "for file in $PATH_PINDEL_DATA_025/$PATH_DATA/$BAM_NAME_BASE*ALL.vcf; do   ITER=$( basename $file | grep -o \"bwa_[0-9]*[\\._]\" | grep -o '[0-9]*' ) && cp $file $RAW_VARIANTS_FOLDER/pindel025_v${ITER}_$(basename $file); done"
+                    },
+                    "delly": {
+                        "Command": "for file in $PATH_DELLY_072_DATA/$PATH_DATA/$BAM_NAME_BASE*.vcf; do   ITER=$( basename $file | grep -o \"bwa_[0-9]*[\\._]\" | grep -o '[0-9]*' ) && cp $file $RAW_VARIANTS_FOLDER/delly_072_v${ITER}_$(basename $file); done"
+                    },
+                    "cortex": {
+                        "Command": "for file in $PATH_CORTEX_DATA/$PATH_DATA/$BAM_NAME_BASE*/vcfs/$BAM_NAME_BASE*{all_k.raw.vcf,all_k.decomp.vcf}; do   ITER=$( basename $file | grep -o \"bwa_[0-9]*[\\._]\" | grep -o '[0-9]*' ) && cp $file $RAW_VARIANTS_FOLDER/cortex_v${ITER}_$(basename $file) &> /dev/null || echo \"cortex variant files not found.\"; done"
+                    },
+                    "cortex 10521": {
+                        "Command": "for file in $( ls $PATH_CORTEX_DATA_10521/$PATH_DATA/$BAM_NAME_BASE*/vcfs/$BAM_NAME_BASE*{all_k.raw.vcf,all_k.decomp.vcf} ); do ITER=$( basename $file | grep -o \"bwa_[0-9]*[\\._]\" | grep -o '[0-9]*' ) && cp $file $RAW_VARIANTS_FOLDER/cortex10521_v${ITER}_$(basename $file) &> /dev/null || echo \"cortex10521 variant files not found.\"; done"
+                    }
+                }
+            },
+            "filter variants": {
+                "Script": "D02_filter_vcf.sh",
+                "Syntax": "D02_filter_vcf.sh $MRA",
+                "Commands": {}
+            }
+        }
+    },
+    "Variant annotation": {
+        "Script": "406_annotate2vcf.sh",
+        "Syntax": "005_A_annotate_variants.sh $MRA",
+        "Subscripts": {
+            "Script": "run_snpeff.sh",
+            "Syntax": "run_snpeff.sh $SNPEFF_REF $file $PATH_SNPEFF_DATA $PATH_SNPEFF",
+            "Commands": "java -Xmx4g -jar $SNPEFF_PATH/snpEff.jar eff -c $SNPEFF_PATH/snpEff.config -i vcf -o vcf -ud 0 -v $REF_FILE $VCF_FILE >$SNPEFF_DATA/$VCF_BASE.eff.vcf2"
+        }
+    }
+}
+}
+
