@@ -6,7 +6,7 @@ log.info """
 
   __     __          ____                  _   _ _____
  \\ \\   / /_ _ _ __ / ___|__ _ _ __       | \\ | |  ___|
-  \\ \\ / / _` | '__| |   / _` | '_ \ _____|  \\| | |_
+  \\ \\ / / _` | '__| |   / _` | '_ \\ _____|  \\| | |_
    \\ V / (_| | |  | |__| (_| | |_) |_____| |\\  |  _|
     \\_/ \\__,_|_|   \\____\\__,_| .__/      |_| \\_|_|
                              |_|
@@ -35,6 +35,14 @@ Import of modules
 */
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+MODULES: Preparation of project
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+// Prepare reference genome
+include { PREPARE_REFERENCE                     } from './modules/misc/prepare_reference.nf'
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 MODULES: Read QC and trimming
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
@@ -46,7 +54,6 @@ include { FASTQC as FASTQC_TRIM_SINGLES         } from './modules/reads_qc/fastq
 //
 //MultiQC
 include { MULTIQC as MULTIQC_RAW                } from './modules/reads_qc/multiqc/multiqc.nf'
-include { MULTIQC as MULTIQC_TRIM               } from './modules/reads_qc/multiqc/multiqc.nf'
 include { MULTIQC as MULTIQC_TRIM_PAIRED        } from './modules/reads_qc/multiqc/multiqc.nf'
 include { MULTIQC as MULTIQC_TRIM_SINGLES       } from './modules/reads_qc/multiqc/multiqc.nf'
 //
@@ -54,11 +61,20 @@ include { MULTIQC as MULTIQC_TRIM_SINGLES       } from './modules/reads_qc/multi
 include { TRIMMOMATIC                           } from './modules/reads_qc/trimmomatic/trimmomatic.nf'
 //
 //BBDUK
-include { BBDUK_PAIRED                          } from './modules/bbtools/bbduk/bbduk_paired.nf'
-include { BBDUK_SINGLES                         } from './modules/bbtools/bbduk/bbduk_singles.nf'
-
+include { BBDUK_COMBINED                        } from './modules/bbduk/bbduk_combined.nf'
 //
-// BBMap
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+MODULES: Read mapping
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+// Combine_reads
+include { COMBINE_READS                         } from './modules/misc/combine_reads.nf'
+//
+// BWA
+include { BWA_BUILD_INDEX                      } from './modules/read_mapping/bwa_build_index.nf'
+include { BWA_MAPPING                          } from './modules/read_mapping/bwa_mapping.nf'
 //
 // Breakdancer
 //
@@ -90,6 +106,13 @@ workflow {
     raw_reads_channel = Channel.fromFilePairs(params.DEFAULT.raw_reads, checkIfExists:true)
 
     main:
+        /*
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Project preparation
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        */
+        PREPARE_REFERENCE(params.DEFAULT.reference_genome_gbk)
+
         /*
         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         Read QC and trimming
@@ -124,43 +147,44 @@ workflow {
         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         */
         // Combine trimmed paired and single reads for mapping
-            // SEQTK (for interleaving paired reads) + zcat (for combining with single reads) + pigz (for compression)
+            COMBINE_READS(BBDUK_COMBINED.out.paired_reads, BBDUK_COMBINED.out.single_reads)
 
-        // BWA-MEM
-            // "bwa-mem2 mem -p -threads ...  $reference_genome $reads > ${sample_id}.sam"
-        // SAMtools (BAM conversion, sorting, indexing)
-        // MPileup (for VarScan2 and Lofreq)
+        // BWA: Build index
+            BWA_BUILD_INDEX(PREPARE_REFERENCE.out.reference_fasta)
+        // BWA: Map reads to reference genome
+            BWA_MAPPING(BWA_BUILD_INDEX.out.reference_index, COMBINE_READS.out.combined_reads)
+        // Samtools: sam to bam conversion -> sort
 
-    // SNP Calling
+        // Samtools: bam indexing
+
+        // Samtools: calculate coverage
+
+        // Picard: Calculate insert size
+
+
+        /*
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Variant calling
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        */
         // VarScan2
         // Lofreq
-
-    // Indel Calling
-        // Small indels
-            // VarScan2
-            // Lofreq
-        // Large indels
-            // Pindel
-            // Breakdancer
-            // Delly
-            // Cortex
-
-    // Duplication calling
         // Pindel
         // Breakdancer
         // Delly
-
-    // Translocation calling
-        // Breakdancer
-        // Delly
-
-    // Inversion calling
-        // Pindel
         // Cortex
 
-    // Variant filtering and reporting
+        /*
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Variant filtering
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        */
         // VarCap (integrates results from all variant callers, applies filters, and annotates variants)
 
-    // Variant annotation
+        /*
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Variant annotation
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        */
         // SnpEff (for SNPs and small indels)
 }

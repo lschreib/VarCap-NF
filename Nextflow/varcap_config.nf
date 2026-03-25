@@ -14,7 +14,7 @@ process {
     // executor can be either 'local' or 'slurm' 
     executor = "slurm"
     clusterOptions = "--account=nrc_eme --export=ALL"
-    
+
     /*
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     CONTAINER: DEFAULT
@@ -22,20 +22,25 @@ process {
     the process requires a specific one)
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     */
-    container = "file:///$INSTALL_HOME/software/imagefiles/nrc_tools/NRC_Tools_1.4.1.sif"
+    container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v0.1.sif"
     //
     //Now follow singularity containers for pipeline steps that require specific containers
-    
+
+    /*
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    CONTAINER: Prepare project
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    */
+    withName:PREPARE_REFERENCE {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v0.1.sif"
+    }
+
     /*
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     CONTAINER: Read QC and trimming
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     */
     withName:FASTQC_RAW {
-        container = "file:///$INSTALL_HOME/software/imagefiles/fastqc/FastQC_0.11.9.sif"
-    }
-    
-    withName:FASTQC_TRIM {
         container = "file:///$INSTALL_HOME/software/imagefiles/fastqc/FastQC_0.11.9.sif"
     }
 
@@ -47,6 +52,10 @@ process {
         container = "file:///$INSTALL_HOME/software/imagefiles/fastqc/FastQC_0.11.9.sif"
     }
 
+    withName:MULTIQC_RAW {
+        container = "file:///$INSTALL_HOME/software/imagefiles/multiqc/MultiQC_v1.30.sif"
+    }
+
     withName:MULTIQC_TRIM_PAIRED {
         container = "file:///$INSTALL_HOME/software/imagefiles/multiqc/MultiQC_v1.30.sif"
     }
@@ -55,20 +64,29 @@ process {
         container = "file:///$INSTALL_HOME/software/imagefiles/multiqc/MultiQC_v1.30.sif"
     }
 
-    withName:MULTIQC_TRIM {
-        container = "file:///$INSTALL_HOME/software/imagefiles/multiqc/MultiQC_v1.30.sif"
-    }
-
     withName:TRIMMOMATIC {
         container = "file:///$INSTALL_HOME/software/imagefiles/trimmomatic/Trimmomatic_0.39.sif"
     }
 
-    withName:BBDUK_PAIRED {
+    withName:BBDUK_COMBINED {
         container = "file:///$INSTALL_HOME/software/imagefiles/bbmap/BBMap_39.01.sif"
     }
-    
-    withName:BBDUK_SINGLES {
-        container = "file:///$INSTALL_HOME/software/imagefiles/bbmap/BBMap_39.01.sif"
+
+    /*
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    CONTAINER: Read mapping
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    */
+    withName:COMBINE_READS {
+        container = "file:///$INSTALL_HOME/software/imagefiles/seqtk/seqtk_v1.5.sif"
+    }
+
+    withName:BWA_BUILD_INDEX {
+        container = "file:///$INSTALL_HOME/software/imagefiles/bwa/bwamem2_v2.3.sif"
+    }
+
+    withName:BWA_MAPPING {
+        container = "file:///$INSTALL_HOME/software/imagefiles/bwa/bwamem2_v2.3.sif"
     }
 
 }
@@ -83,7 +101,7 @@ singularity {
 
 
 params {
-    
+
     clusterOptions = "--account=nrc_eme --export=ALL"
 
     DEFAULT {
@@ -93,17 +111,17 @@ params {
         cluster_time = 6.h
         cluster_cpus = 1
         cluster_memory = 12.GB
-        
+
         raw_reads = "$projectDir/reads_workdir/*_R{1,2}.fastq.gz"
-        reference_genome = "$projectDir/reference_genome/ref_genome.fasta"
+        reference_genome_gbk = "$projectDir/reference_genome/Pseud_AE27_CP146966.gbk"
         outdir = "$projectDir/output/"
     }
-    
+
 
     /*
         Customized parameters for individual processes
     */
-    
+
     /*
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     CONFIG: Read QC and trimming
@@ -136,7 +154,7 @@ params {
         //crop = 235 //adjust spades_rrna kmer values if <134!
         adapter_fasta = "$INSTALL_HOME/databases/contaminants/bbduk/adapters.fa"
         illumina_clip_settings = ":2:10:10"
-        cluster_time = 1.h
+        cluster_time = 4.h
         cluster_cpus = 6
         cluster_memory = 32.GB
     }
@@ -158,9 +176,9 @@ params {
     */
 
     bwa_index {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
     }
 
     bwa_mapping {
