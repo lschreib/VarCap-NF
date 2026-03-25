@@ -11,6 +11,7 @@ LABEL software.version="1.7.3"
 #Install standard packages and Java
 RUN apk update > /dev/null && \
     apk --no-cache add \
+        pigz \
         gzip \
         build-base \
         zlib-dev \
