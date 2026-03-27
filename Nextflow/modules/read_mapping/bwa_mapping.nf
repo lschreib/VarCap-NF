@@ -14,13 +14,14 @@ process BWA_MAPPING {
         tuple val(sample_id), path(reads)
 
     output:
-        path("${sample_id}.sam"), emit: sam_output
+        tuple val(sample_id), path("${sample_id}.sam"), emit: sam_output
 
     script:
         """
         bwa-mem2 mem -p \
             -t ${params.bwa_mapping.cluster_cpus} \
-            ${reference_index} \
-            ${reads} > ${sample_id}.sam
+            -o ${sample_id}.sam \
+            reference.fna \
+            ${reads}
         """
 }

@@ -1,5 +1,5 @@
 process BBDUK_COMBINED {
-    publishDir "$params.DEFAULT.outdir/qced_reads/", mode: 'copy'
+    //publishDir "$params.DEFAULT.outdir/qced_reads/", mode: 'copy'
     debug true
     //All Java-based steps have problems with parallelization because they will all use the same temporary directory
     //which fills up quickly when many processes are run at the same time, we therefore set these steps to "sequential"
@@ -12,12 +12,12 @@ process BBDUK_COMBINED {
     time params.bbduk.cluster_time
 
     input:
-        tuple val(sample_idP), path(infile_Paired1), path(infile_Paired1)
+        tuple val(sample_idP), path(infile_Paired1), path(infile_Paired2)
         tuple val(sample_idS), path(infile_Singles1), path(infile_Singles2)
 
 
     output:
-        tuple val(sample_idP), path("${sample_idP}_paired_ncontam_R*.fastq.gz"), emit: paired_reads
+        tuple val(sample_idP), path("${sample_idP}_paired_ncontam_R1.fastq.gz"), path("${sample_idP}_paired_ncontam_R2.fastq.gz"), emit: paired_reads
         tuple val(sample_idS), path("${sample_idS}_singles_ncontam.fastq.gz"), emit: single_reads
         path("${sample_idP}_paired_bbduk_log.txt"), emit: paired_log
         path("${sample_idS}_singles_bbduk_log.txt"), emit: singles_log
@@ -33,7 +33,7 @@ process BBDUK_COMBINED {
             stats=${sample_idP}_paired_bbduk_log.txt \\
             k=${params.bbduk.k} \\
             minkmerhits=${params.bbduk.c} \\
-			minlength=${params.bbduk.min_len} \\
+            minlength=${params.bbduk.min_len} \\
             ref=${params.bbduk.contaminants} \\
             overwrite=true \\
             threads=1 && \\
@@ -50,7 +50,7 @@ process BBDUK_COMBINED {
             stats=${sample_idS}_singles_bbduk_log.txt \\
             k=${params.bbduk.k} \\
             minkmerhits=${params.bbduk.c} \\
-			minlength=${params.bbduk.min_len} \\
+            minlength=${params.bbduk.min_len} \\
             ref=${params.bbduk.contaminants} \\
             overwrite=true \\
             threads=${params.bbduk.cluster_cpus}

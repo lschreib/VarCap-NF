@@ -35,6 +35,18 @@ process {
         container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v0.1.sif"
     }
 
+    withName:INDEX_REFERENCE {
+        container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
+    }
+
+        /*
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        CONTAINER: Read QC and trimming
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        */
+        withName:FASTQC_RAW {
+            container = "file:///$INSTALL_HOME/software/imagefiles/fastqc/FastQC_0.11.9.sif"
+        }
     /*
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     CONTAINER: Read QC and trimming
@@ -89,6 +101,86 @@ process {
         container = "file:///$INSTALL_HOME/software/imagefiles/bwa/bwamem2_v2.3.sif"
     }
 
+    withName:SAMTOOLS_TO_BAM {
+        container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
+    }
+
+    withName:SAMTOOLS_INDEX {
+        container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
+    }
+
+    withName:SAMTOOLS_COVERAGE {
+        container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
+    }
+
+    withName:PICARD_INSERT_SIZE {
+        container = "file:///$INSTALL_HOME/software/imagefiles/picard/picard_v3.4.0.sif"
+    }
+
+    /*
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    CONTAINER: Variant calling
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    */
+    //
+    // LoFreq
+    withName:LOFREQ_QUALITY {
+        container = "file:///$INSTALL_HOME/software/imagefiles/lofreq/lofreq_v2.1.5.sif"
+    }
+
+    withName:LOFREQ_CALL {
+        container = "file:///$INSTALL_HOME/software/imagefiles/lofreq/lofreq_v2.1.5.sif"
+    }
+
+    // VarScan2
+    withName:SAMTOOLS_SORT {
+        container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
+    }
+
+    withName:SAMTOOLS_MPILEUP {
+        container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
+    }
+
+    withName:VARSCAN_PILEUP2SNP {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varscan/varscan_v2.3.9.sif"
+    }
+
+    withName:VARSCAN_FILTER_SNP {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varscan/varscan_v2.3.9.sif"
+    }
+
+    withName:VARSCAN_PILEUP2INDEL {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varscan/varscan_v2.3.9.sif"
+    }
+
+    withName:VARSCAN_FILTER_INDEL {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varscan/varscan_v2.3.9.sif"
+    }
+
+    // Pindel
+    withName:SAM2PINDEL {
+        container = "file:///$INSTALL_HOME/software/imagefiles/pindel/pindel_v0.2.5.sif"
+    }
+
+    withName:PINDEL_CALL {
+        container = "file:///$INSTALL_HOME/software/imagefiles/pindel/pindel_v0.2.5.sif"
+    }
+
+    withName:PINDEL2VCF_D {
+        container = "file:///$INSTALL_HOME/software/imagefiles/pindel/pindel_v0.2.5.sif"
+    }
+
+    withName:PINDEL2VCF_INV {
+        container = "file:///$INSTALL_HOME/software/imagefiles/pindel/pindel_v0.2.5.sif"
+    }
+
+    withName:PINDEL2VCF_SI {
+        container = "file:///$INSTALL_HOME/software/imagefiles/pindel/pindel_v0.2.5.sif"
+    }
+
+    withName:PINDEL2VCF_TD {
+        container = "file:///$INSTALL_HOME/software/imagefiles/pindel/pindel_v0.2.5.sif"
+    }
 }
 
 singularity {
@@ -182,33 +274,33 @@ params {
     }
 
     bwa_mapping {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
     }
 
-    samtools_conversion {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+    samtools_bam {
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
     }
 
-    samtools_coverage {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+    samtools_cov {
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
     }
 
-    samtools_indexing {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+    samtools_index {
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
     }
 
-    picard_stats {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+    picard_ins {
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
     }
 
     /*
@@ -219,87 +311,85 @@ params {
     //
     // LoFreq*
     lofreq_quality {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
     }
 
     lofreq_call {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
         min_coverage = 6
-
     }
     //
     // VarScan2
     samtools_sort {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
     }
 
     samtools_mpileup {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
         adjust_mq = 50
         max_depth = 1000
     }
 
-    pileup2snp {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
-        java_xmx = "8g"
+    varscan_pileup2snp {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        java_xmx = "16g"
         min_var_freq = 0.001
     }
 
-    filter_snp {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
-        java_xmx = "8g"
+    varscan_filter_snp {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        java_xmx = "16g"
         min_avg_qual = 25
         min_var_freq = 0.001
         min_strands2 = 2
     }
 
-    pileup2indel {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
-        java_xmx = "8g"
+    varscan_pileup2indel {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        java_xmx = "16g"
         min_var_freq = 0.001
     }
 
-    filter_indel {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
-        java_xmx = "8g"
+    varscan_filter_indel {
+       cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        java_xmx = "16g"
         min_avg_qual = 25
         min_var_freq = 0.001
     }
     //
     // Pindel
     sam2pindel {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
-        //insert_size = 300         // Better to determine this from the data, e.g. by looking at the insert size distribution in the picard stats output and adjusting accordingly.
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
     }
 
-    pindel {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+    pindel_call {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
     }
 
     pindel2vcf {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
     }
 
     //
