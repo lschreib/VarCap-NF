@@ -1,4 +1,4 @@
-process SAMTOOLS_TO_BAM {
+process SAMTOOLS_TO_BAM_SE {
     //publishDir "$params.DEFAULT.outdir/qced_reads/logs", mode: 'copy', pattern: "*_trimmomatic_log.txt"
     //publishDir "$params.DEFAULT.outdir/qced_reads/logs", mode: 'copy', pattern: "*_trimmomatic_stats.tsv"
     //debug true
@@ -13,10 +13,10 @@ process SAMTOOLS_TO_BAM {
         tuple val(sample_id), path(sam_file)
 
     output:
-        tuple val(sample_id), path("${sample_id}.bam"), emit: bam_output
+        tuple val(sample_id), path("${sample_id}.se.bam"), emit: bam_output
     
     script:
         """
-        samtools view -bS ${sam_file} | samtools sort -O bam -o ${sample_id}.bam
+        samtools view -O BAM -o ${sample_id}.se.bam ${sam_file}
         """
 }

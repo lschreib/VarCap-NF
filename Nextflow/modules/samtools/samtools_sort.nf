@@ -14,6 +14,6 @@ process SAMTOOLS_SORT {
         tuple val(sample_id), path("${sample_id}.sorted.bam"), emit: sorted_bam
     script:
         """
-        samtools sort ${sample_id}.bam -o ${sample_id}.sorted.bam
+        samtools sort ${bam_file} -o ${sample_id}.sorted.bam
         """
 }
