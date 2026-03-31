@@ -5,8 +5,8 @@ ENV TZ=Etc/UTC
 
 ### LABELS ###
 LABEL base_image="mambaforge"
-LABEL software="Breakdancer"
-LABEL software.version="1.4.5"
+LABEL software="bcftools"
+LABEL software.version="1.23.1"
 
 ### Basic dependency ###
 RUN apt-get clean all && \
@@ -25,14 +25,11 @@ ENV PATH=/opt/conda/bin:$PATH
 ### install GetOrganelle through bioconda ###
 RUN conda config --add channels conda-forge && \
     conda config --add channels bioconda && \
-    mamba create -n Breakdancer && \
-    mamba install -n Breakdancer -c bioconda -c conda-forge -y breakdancer=1.4.5
+    mamba create -n bcftools && \
+    mamba install -n bcftools -c bioconda -c conda-forge -y bcftools=1.23.1
 
-COPY bam2cfg.pl /opt/conda/envs/Breakdancer/lib/breakdancer-maxunstable/bam2cfg.pl
-RUN chmod 775 /opt/conda/envs/Breakdancer/lib/breakdancer-maxunstable/bam2cfg.pl
-
-RUN echo "source activate Breakdancer" > ~/.bashrc
-ENV PATH=/opt/conda/envs/Breakdancer/bin:$PATH
+RUN echo "source activate bcftools" > ~/.bashrc
+ENV PATH=/opt/conda/envs/bcftools/bin:$PATH
 
 ENTRYPOINT ["tini", "--"]
 CMD [ "/bin/bash" ]
