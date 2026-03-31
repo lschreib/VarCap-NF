@@ -39,14 +39,6 @@ process {
         container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
     }
 
-        /*
-        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        CONTAINER: Read QC and trimming
-        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        */
-        withName:FASTQC_RAW {
-            container = "file:///$INSTALL_HOME/software/imagefiles/fastqc/FastQC_0.11.9.sif"
-        }
     /*
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     CONTAINER: Read QC and trimming
@@ -80,28 +72,35 @@ process {
         container = "file:///$INSTALL_HOME/software/imagefiles/trimmomatic/Trimmomatic_0.39.sif"
     }
 
+    withName:BBDUK {
+        container = "file:///$INSTALL_HOME/software/imagefiles/bbmap/BBMap_39.01.sif"
+    }
+
     withName:BBDUK_COMBINED {
         container = "file:///$INSTALL_HOME/software/imagefiles/bbmap/BBMap_39.01.sif"
     }
 
     /*
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    CONTAINER: Read mapping
+    CONTAINER: Samtools and Picard
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     */
-    withName:COMBINE_READS {
-        container = "file:///$INSTALL_HOME/software/imagefiles/seqtk/seqtk_v1.5.sif"
+    // Picard
+    // Picard AddReadGroup
+    withName:PICARD_ADD_READ_GROUP {
+        container = "file:///$INSTALL_HOME/software/imagefiles/picard/picard_v3.4.0.sif"
     }
 
-    withName:BWA_BUILD_INDEX {
-        container = "file:///$INSTALL_HOME/software/imagefiles/bwa/bwamem2_v2.3.sif"
+    withName:PICARD_INSERT_SIZE {
+        container = "file:///$INSTALL_HOME/software/imagefiles/picard/picard_v3.4.0.sif"
     }
 
-    withName:BWA_MAPPING {
-        container = "file:///$INSTALL_HOME/software/imagefiles/bwa/bwamem2_v2.3.sif"
+    withName:PICARD_MARK_DUP {
+        container = "file:///$INSTALL_HOME/software/imagefiles/picard/picard_v3.4.0.sif"
     }
 
-    withName:SAMTOOLS_TO_BAM {
+    // Samtools
+    withName:SAMTOOLS_COVERAGE {
         container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
     }
 
@@ -109,12 +108,49 @@ process {
         container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
     }
 
-    withName:SAMTOOLS_COVERAGE {
+    withName:SAMTOOLS_MERGE {
         container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
     }
 
-    withName:PICARD_INSERT_SIZE {
-        container = "file:///$INSTALL_HOME/software/imagefiles/picard/picard_v3.4.0.sif"
+    withName:SAMTOOLS_MPILEUP {
+        container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
+    }
+
+    withName:SAMTOOLS_SORT {
+        container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
+    }
+
+    withName:SAMTOOLS_TO_BAM_PE {
+        container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
+    }
+
+    withName:SAMTOOLS_TO_BAM_SE {
+        container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
+    }
+
+    withName:SAMTOOLS_TO_SAM {
+        container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
+    }
+
+    /*
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    CONTAINER: Read mapping
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    */
+    //withName:COMBINE_READS {
+    //    container = "file:///$INSTALL_HOME/software/imagefiles/seqtk/seqtk_v1.5.sif"
+    //}
+
+    withName:BWA_BUILD_INDEX {
+        container = "file:///$INSTALL_HOME/software/imagefiles/bwa/bwamem2_v2.3.sif"
+    }
+
+    withName:BWA_MAPPING_PE {
+        container = "file:///$INSTALL_HOME/software/imagefiles/bwa/bwamem2_v2.3.sif"
+    }
+
+    withName:BWA_MAPPING_SE {
+        container = "file:///$INSTALL_HOME/software/imagefiles/bwa/bwamem2_v2.3.sif"
     }
 
     /*
@@ -133,14 +169,6 @@ process {
     }
 
     // VarScan2
-    withName:SAMTOOLS_SORT {
-        container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
-    }
-
-    withName:SAMTOOLS_MPILEUP {
-        container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
-    }
-
     withName:VARSCAN_PILEUP2SNP {
         container = "file:///$INSTALL_HOME/software/imagefiles/varscan/varscan_v2.3.9.sif"
     }
@@ -181,6 +209,45 @@ process {
     withName:PINDEL2VCF_TD {
         container = "file:///$INSTALL_HOME/software/imagefiles/pindel/pindel_v0.2.5.sif"
     }
+
+    // BCF to VCF conversion
+    withName:BCF_TO_VCF {
+        container = "file:///$INSTALL_HOME/software/imagefiles/bcftools/bcftools_v1.23.1.sif"
+    }
+
+    // Delly
+    withName:DELLY_DEL {
+        container = "file:///$INSTALL_HOME/software/imagefiles/delly/delly_v1.7.3.sif"
+    }
+
+    withName:DELLY_INS {
+        container = "file:///$INSTALL_HOME/software/imagefiles/delly/delly_v1.7.3.sif"
+    }
+
+    withName:DELLY_DUP {
+        container = "file:///$INSTALL_HOME/software/imagefiles/delly/delly_v1.7.3.sif"
+    }
+
+    withName:DELLY_INV {
+        container = "file:///$INSTALL_HOME/software/imagefiles/delly/delly_v1.7.3.sif"
+    }
+
+    withName:DELLY_BND {
+        container = "file:///$INSTALL_HOME/software/imagefiles/delly/delly_v1.7.3.sif"
+    }
+
+    // Breakdancer
+    withName:BREAKDANCER_MAKE_CONFIG {
+        container = "file:///$INSTALL_HOME/software/imagefiles/breakdancer/breakdancer_v1.4.5.sif" 
+    }
+
+    withName:BREAKDANCER_MAX {
+        container = "file:///$INSTALL_HOME/software/imagefiles/breakdancer/breakdancer_v1.4.5.sif" 
+    }
+
+    withName:BREAKDANCER_FILTER {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v0.1.sif" 
+    }
 }
 
 singularity {
@@ -207,6 +274,15 @@ params {
         raw_reads = "$projectDir/reads_workdir/*_R{1,2}.fastq.gz"
         reference_genome_gbk = "$projectDir/reference_genome/Pseud_AE27_CP146966.gbk"
         outdir = "$projectDir/output/"
+
+        // Also use orphaned reads for variant calling
+        // (useful for low quality data sets that features a lot of orphaned single
+        // end reads after qc filtering and trimming)
+        recycle_single = true
+
+        // will be used for variant calling with Breakdancer
+        read_length = 150
+        insert_size = 250
     }
 
 
@@ -256,8 +332,9 @@ params {
         c = 1
         min_len = 40
         cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        java_xmx = "28g"
         contaminants = "$INSTALL_HOME/databases/contaminants/bbduk/full_collection.fa"
     }
 
@@ -285,7 +362,19 @@ params {
         cluster_memory = 32.GB
     }
 
+    samtools_sam {
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
+    }
+
     samtools_cov {
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
+    }
+
+    samtools_merge {
         cluster_time = 4.h
         cluster_cpus = 6
         cluster_memory = 32.GB
@@ -391,37 +480,68 @@ params {
         cluster_cpus = 8
         cluster_memory = 32.GB
     }
-
+    //
+    // Picard AddReadGroup
+    picard_add {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        java_xmx = "16g"
+    }
     //
     // Breakdancer
-    picard_header {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
-        java_xmx = "8g"
-    }
-
     breakdancer_config {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        fraction_trim = 0.05
     }
 
-    breakdancer {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+    breakdancer_max {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        // Default parameters for breakdancer-max copied from original VarCap pipeline
         min_length_region = 15
         min_alternative_mapping_quality = 35
         min_supporting_pairs = 8
     }
+
+    breakdancer_filter {
+        cluster_time = 1.h
+        cluster_cpus = 1
+        cluster_memory = 4.GB
+        cutoff_score = 1
+    }
+
     //
     // Delly
+    picard_dup {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        java_xmx = "16g"
+    }
+
     delly {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        // the following parameters represent Delly's default values
+        mapping_quality = 1
+        translocation_quality = 20
+        insert_size_cutoff = 9
+        min_clip_length = 25
+        min_clique_size = 2
+        min_ref_separation = 25
+        max_read_separation = 40
+        max_reads_for_consensus = 20
+    }
+
+    bcf_to_vcf {
         cluster_time = 1.h
         cluster_cpus = 1
         cluster_memory = 4000.MB
-        max_indel_size = 2000
     }
     //
     // Cortex_var
@@ -499,7 +619,7 @@ manifest {
     description     = """Nextflow reimplementation of the VarCap pipeline for variant profiling of evolving microbial populations."""
     mainScript      = "varcap_workflow.nf"
     nextflowVersion = "!>=23.04.3"
-    version         = "0.1.0"
+    version         = "0.2.0"
     doi             = "https://doi.org/10.7717/peerj.2997"
 }
 
