@@ -88,6 +88,7 @@ MODULES: Samtools and Picard helper modules
 include { PICARD_ADD_READ_GROUP                } from './modules/picard/picard_add_read_group.nf'
 include { PICARD_INSERT_SIZE                   } from './modules/picard/picard_insert_size.nf'
 include { PICARD_MARK_DUP                      } from './modules/picard/picard_mark_dup.nf'
+include { PICARD_BAM_TO_FASTQ                  } from './modules/picard/picard_bam_to_fastq.nf'
 
 // Samtools
 include { SAMTOOLS_COVERAGE                    } from './modules/samtools/samtools_coverage.nf'
@@ -111,6 +112,10 @@ include { BREAKDANCER_FILTER                   } from './modules/variant_calling
 //
 // Cortex
 //
+include { BBTOOLS_REPAIR_READS                 } from './modules/bbduk/bbtools_repair_reads.nf'
+include { CORTEX_K31                           } from './modules/variant_calling/cortex/cortex_k31.nf'
+include { CORTEX_K61                           } from './modules/variant_calling/cortex/cortex_k61.nf'
+include { CORTEX_CALL                          } from './modules/variant_calling/cortex/cortex_call.nf'
 // Delly
 //
 include { DELLY as DELLY_DEL                   } from './modules/variant_calling/delly/delly.nf'
@@ -350,6 +355,20 @@ workflow {
             BREAKDANCER_FILTER(BREAKDANCER_MAX.out.breakdancer_ctx)
 
         // Cortex
+            // Prepare Cortex input files
+                // BAM to FASTQ
+                PICARD_BAM_TO_FASTQ(SAMTOOLS_SORT.out.sorted_bam)
+                BBTOOLS_REPAIR_READS(PICARD_BAM_TO_FASTQ.out.fastq_output)
+                // Build reference genome binaries
+                CORTEX_K31(PREPARE_REFERENCE.out.reference_fasta)
+                CORTEX_K61(PREPARE_REFERENCE.out.reference_fasta)
+
+            // Run Cortex for different k-mer sizes
+                CORTEX_CALL(PREPARE_REFERENCE.out.reference_fasta,
+                            INDEX_REFERENCE.out.reference_index,
+                            BBTOOLS_REPAIR_READS.out.repaired_reads,
+                            CORTEX_K31.out.cortex_k31_binary,
+                            CORTEX_K61.out.cortex_k61_binary)
 
         /*
         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

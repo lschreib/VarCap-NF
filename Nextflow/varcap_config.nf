@@ -99,6 +99,10 @@ process {
         container = "file:///$INSTALL_HOME/software/imagefiles/picard/picard_v3.4.0.sif"
     }
 
+    withName:PICARD_BAM_TO_FASTQ {
+        container = "file:///$INSTALL_HOME/software/imagefiles/picard/picard_v3.4.0.sif"
+    }
+
     // Samtools
     withName:SAMTOOLS_COVERAGE {
         container = "file:///$INSTALL_HOME/software/imagefiles/samtools/Samtools_1.23.sif"
@@ -248,6 +252,23 @@ process {
     withName:BREAKDANCER_FILTER {
         container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v0.1.sif" 
     }
+
+    // Cortex_var
+    withName:BBTOOLS_REPAIR_READS {
+        container = "file:///$INSTALL_HOME/software/imagefiles/bbmap/BBMap_39.01.sif"
+    }
+
+    withName:CORTEX_K31 {
+        container = "file:///$INSTALL_HOME/software/imagefiles/cortex/cortex_v1.0.5.sif"
+    }
+
+    withName:CORTEX_K61 {
+        container = "file:///$INSTALL_HOME/software/imagefiles/cortex/cortex_v1.0.5.sif"
+    }
+
+    withName:CORTEX_CALL {
+        container = "file:///$INSTALL_HOME/software/imagefiles/cortex/cortex_v1.0.5.sif"
+    }
 }
 
 singularity {
@@ -340,6 +361,85 @@ params {
 
     /*
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    CONFIG: Picard and Samtools
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    */
+    //
+    // Picard
+    picard_add {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        java_xmx = "16g"
+    }
+
+    picard_bam_to_fastq {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        java_xmx = "16g"
+    }
+
+    picard_dup {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        java_xmx = "16g"
+    }
+
+    picard_ins {
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
+    }
+    //
+    // Samtools
+    samtools_bam {
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
+    }
+
+    samtools_cov {
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
+    }
+
+    samtools_index {
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
+    }
+
+    samtools_merge {
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
+    }
+
+    samtools_mpileup {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        adjust_mq = 50
+        max_depth = 1000
+    }
+
+    samtools_sam {
+        cluster_time = 4.h
+        cluster_cpus = 6
+        cluster_memory = 32.GB
+    }
+
+    samtools_sort {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+    }
+
+    /*
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     CONFIG: Read mapping
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     */
@@ -353,42 +453,6 @@ params {
     bwa_mapping {
         cluster_time = 4.h
         cluster_cpus = 8
-        cluster_memory = 32.GB
-    }
-
-    samtools_bam {
-        cluster_time = 4.h
-        cluster_cpus = 6
-        cluster_memory = 32.GB
-    }
-
-    samtools_sam {
-        cluster_time = 4.h
-        cluster_cpus = 6
-        cluster_memory = 32.GB
-    }
-
-    samtools_cov {
-        cluster_time = 4.h
-        cluster_cpus = 6
-        cluster_memory = 32.GB
-    }
-
-    samtools_merge {
-        cluster_time = 4.h
-        cluster_cpus = 6
-        cluster_memory = 32.GB
-    }
-
-    samtools_index {
-        cluster_time = 4.h
-        cluster_cpus = 6
-        cluster_memory = 32.GB
-    }
-
-    picard_ins {
-        cluster_time = 4.h
-        cluster_cpus = 6
         cluster_memory = 32.GB
     }
 
@@ -413,20 +477,6 @@ params {
     }
     //
     // VarScan2
-    samtools_sort {
-        cluster_time = 4.h
-        cluster_cpus = 8
-        cluster_memory = 32.GB
-    }
-
-    samtools_mpileup {
-        cluster_time = 4.h
-        cluster_cpus = 8
-        cluster_memory = 32.GB
-        adjust_mq = 50
-        max_depth = 1000
-    }
-
     varscan_pileup2snp {
         cluster_time = 4.h
         cluster_cpus = 8
@@ -481,14 +531,6 @@ params {
         cluster_memory = 32.GB
     }
     //
-    // Picard AddReadGroup
-    picard_add {
-        cluster_time = 4.h
-        cluster_cpus = 8
-        cluster_memory = 32.GB
-        java_xmx = "16g"
-    }
-    //
     // Breakdancer
     breakdancer_config {
         cluster_time = 4.h
@@ -516,13 +558,6 @@ params {
 
     //
     // Delly
-    picard_dup {
-        cluster_time = 4.h
-        cluster_cpus = 8
-        cluster_memory = 32.GB
-        java_xmx = "16g"
-    }
-
     delly {
         cluster_time = 4.h
         cluster_cpus = 8
@@ -545,55 +580,36 @@ params {
     }
     //
     // Cortex_var
-    cortex_var {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+    bbtools_repair {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        java_xmx = "16g"
     }
 
-    //picard_header -> breakdancer_config -> picard_header
-
-    picard_bam2fastq {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
-        java_xmx = "8g"
-    }
-
-    cortex_build_ref {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
+    cortex_binary {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
         mem_height = 21
         mem_width = 100
-        max_read_length = 10000
         first_kmer = 31
         last_kmer = 61
     }
 
-    cortex_stampy {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
-    }
-
-    cortex_var_call {
-        cluster_time = 1.h
-        cluster_cpus = 1
-        cluster_memory = 4000.MB
-        first_kmer = 31
-        last_kmer = 61
-        kmer_step = 30
+    cortex_call {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
         auto_cleaning = "yes"
         make_buble_calls = "yes"
         make_pd_calls = "no"
         ploidy = 1
-        //genome_size -> get from data
-        max_read_length = 10000
         qthresh = 5
         mem_height = 21
         mem_width = 100
         do_union = "yes"
+        ref = "CoordinatesAndInCalling"
         workflow = "independent"
     }
 
