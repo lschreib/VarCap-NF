@@ -4,3 +4,4 @@ Required components of VarCap container:
 - vmatch & mkvtree
 - cat, awk, grep, cut, sort, sed
 - R
+- Samtools
