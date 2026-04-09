@@ -64,8 +64,8 @@ RUN install2.r optparse readr ggplot2 && \
 RUN pip install genbank_to --break-system-packages
 
 # Install Samtools
+COPY samtools-1.23.tar.bz2 /usr/bin/samtools-1.23.tar.bz2
 RUN cd /usr/bin && \
-    wget --no-check-certificate https://github.com/samtools/samtools/releases/download/1.23/samtools-1.23.tar.bz2 && \
     tar jxvf samtools-1.23.tar.bz2 && \
     cd samtools-1.23 && \
     sed -i.bak 's/LIBCURSES\=  -lcurses/LIBCURSES\=  -lncurses/g' Makefile && \
@@ -76,15 +76,17 @@ RUN cd /usr/bin && \
 
 WORKDIR /app_home
 # Install VMatch & MKVTree
-RUN wget --no-check-certificate http://www.vmatch.de/distributions/vmatch-2.3.1-Linux_x86_64-64bit.tar.gz && \
-    tar -xvzf vmatch-2.3.1-Linux_x86_64-64bit.tar.gz && \
+COPY vmatch-2.3.1-Linux_x86_64-64bit.tar.gz /app_home/vmatch-2.3.1-Linux_x86_64-64bit.tar.gz
+RUN tar -xvzf vmatch-2.3.1-Linux_x86_64-64bit.tar.gz && \
     mv vmatch-2.3.1-Linux_x86_64-64bit vmatch && \
     rm vmatch-2.3.1-Linux_x86_64-64bit.tar.gz
 
 ENV PATH="/app_home/vmatch:$PATH"
 
 # Install VarCap package
-RUN git clone --recursive https://github.com/ma2o/VarCap.git
+COPY varcap_v3.0.tar.gz /app_home/varcap_v3.0.tar.gz
+RUN tar -xvzf varcap_v3.0.tar.gz && \
+    rm varcap_v3.0.tar.gz
 
 ENTRYPOINT ["tini", "--"]
 CMD [ "/bin/bash" ]
