@@ -356,7 +356,7 @@ singularity {
 
 params {
 
-    clusterOptions = "--account=nrc_eme --export=ALL"
+    clusterOptions = "--account=xxx --export=ALL"
 
     DEFAULT {
         /* 
