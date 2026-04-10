@@ -88,5 +88,11 @@ COPY varcap_v3.0.tar.gz /app_home/varcap_v3.0.tar.gz
 RUN tar -xvzf varcap_v3.0.tar.gz && \
     rm varcap_v3.0.tar.gz
 
+# Install needed R packages and scripts
+RUN install2.r optparse && \
+    rm -rf /tmp/downloaded_packages
+
+COPY custom_R   /app_home/custom_R
+
 ENTRYPOINT ["tini", "--"]
 CMD [ "/bin/bash" ]
