@@ -3,5 +3,5 @@ Required components of VarCap container:
 - VarCap consolidation Perl scripts
 - vmatch & mkvtree
 - cat, awk, grep, cut, sort, sed
-- R
+- R (non-standard packages: optparse)
 - Samtools
