@@ -13,7 +13,7 @@ executor {
 process {
     // executor can be either 'local' or 'slurm' 
     executor = "slurm"
-    clusterOptions = "--account=nrc_eme --export=ALL"
+    clusterOptions = "--account=xxx --export=ALL"
 
     /*
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
