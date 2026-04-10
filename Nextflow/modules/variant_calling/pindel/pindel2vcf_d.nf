@@ -14,7 +14,7 @@ process PINDEL2VCF_D {
         tuple val(sample_id), path(pindel_deletions_file)
 
     output:
-        path("${sample_id}_D.vcf"), emit: pindel_vcf_deletions
+        tuple val(sample_id), path("${sample_id}_D.vcf"), emit: pindel_vcf_deletions
 
     script:
         """

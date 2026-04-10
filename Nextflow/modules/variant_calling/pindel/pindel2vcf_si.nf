@@ -14,7 +14,7 @@ process PINDEL2VCF_SI {
         tuple val(sample_id), path(pindel_insertions_file)
 
     output:
-        path("${sample_id}_SI.vcf"), emit: pindel_vcf_insertions
+        tuple val(sample_id),path("${sample_id}_SI.vcf"), emit: pindel_vcf_insertions
 
     script:
         """

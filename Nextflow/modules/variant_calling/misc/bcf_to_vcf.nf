@@ -12,7 +12,7 @@ process BCF_TO_VCF {
         tuple val(sample_id), path(bcf_file)
 
     output:
-        path("${bcf_file.baseName}.vcf"), emit: vcf_output
+        tuple val(sample_id), path("${bcf_file.baseName}.vcf"), emit: vcf_output
 
     script:
         """

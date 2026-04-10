@@ -13,7 +13,7 @@ log.info """
 
                Support: lars.schreiber@nrc-cnrc.gc.ca
              Home page: https://github.com/lschreib/VarCap-NF
-               Version: 0.1.0
+               Version: 1.0.0
                   Note: Nextflow reimplementation of the VarCap pipeline for variant profiling
                         of evolving microbial populations.
 #########################################################################################
@@ -99,6 +99,7 @@ include { SAMTOOLS_SORT                        } from './modules/samtools/samtoo
 include { SAMTOOLS_TO_BAM_PE                   } from './modules/samtools/samtools_to_bam_pe.nf'
 include { SAMTOOLS_TO_BAM_SE                   } from './modules/samtools/samtools_to_bam_se.nf'
 include { SAMTOOLS_TO_SAM                      } from './modules/samtools/samtools_to_sam.nf'
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 MODULES: Variant calling
@@ -141,16 +142,46 @@ include { PINDEL2VCF_D                         } from './modules/variant_calling
 include { PINDEL2VCF_SI                        } from './modules/variant_calling/pindel/pindel2vcf_si.nf'
 include { PINDEL2VCF_INV                       } from './modules/variant_calling/pindel/pindel2vcf_inv.nf'
 include { PINDEL2VCF_TD                        } from './modules/variant_calling/pindel/pindel2vcf_td.nf'
-// SnpEff
-//
-// VarCap
-//
 // Varscan2
 include { VARSCAN_PILEUP2INDEL                 } from './modules/variant_calling/varscan/varscan_pileup2indel.nf'
 include { VARSCAN_FILTER_INDEL                 } from './modules/variant_calling/varscan/varscan_filter_indel.nf'
 include { VARSCAN_PILEUP2SNP                   } from './modules/variant_calling/varscan/varscan_pileup2snp.nf'
 include { VARSCAN_FILTER_SNP                   } from './modules/variant_calling/varscan/varscan_filter_snp.nf'
 //
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+MODULES: Varcap - variant filtering and integration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+include { VARCAP_STAGE_AND_COLLECT             } from './modules/varcap/varcap_stage_and_collect.nf'
+include { VARCAP_UNIFY_CHROM_NAMES             } from './modules/varcap/varcap_unify_chrom_names.nf'
+include { VARCAP_CALCULATE_COVERAGE            } from './modules/varcap/varcap_calculate_coverage.nf'
+include { VARCAP_BUILD_REPEAT_VCF              } from './modules/varcap/varcap_build_repeat_vcf.nf'
+include { VARCAP_TAG_REPEATS                   } from './modules/varcap/varcap_tag_repeats.nf'
+include { VARCAP_TAG_HOMOPOLYMERS              } from './modules/varcap/varcap_tag_homopolymers.nf'
+include { VARCAP_TAG_SAR                       } from './modules/varcap/varcap_tag_sar.nf'
+include { VARCAP_TAG_CALLER_POS                } from './modules/varcap/varcap_tag_caller_pos.nf'
+include { VARCAP_APPLY_MRA_FILTER              } from './modules/varcap/varcap_apply_mra_filter.nf'
+include { VARCAP_UNIFY_GI_CHROM_NAMES          } from './modules/varcap/varcap_unify_gi_chrom_names.nf'
+include { VARCAP_STATS_COVERAGE                } from './modules/varcap/varcap_stats_coverage.nf'
+include { VARCAP_STATS_VARIANT_FREQUENCY       } from './modules/varcap/varcap_stats_variant_frequency.nf'
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+MODULES: variant annotation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+// SnpEff
+include { SNPEFF_BUILD_DB                      } from './modules/annotation/snpeff_build_db.nf'
+include { SNPEFF_ANNOTATE                      } from './modules/annotation/snpeff_annotate.nf'
+include { SNPEFF_TABULATE                      } from './modules/annotation/snpeff_tabulate.nf'
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+WORKFLOW
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
 workflow {
     //Populate input channels
     if (!params.DEFAULT?.raw_reads) {
@@ -377,10 +408,130 @@ workflow {
         */
         // VarCap (integrates results from all variant callers, applies filters, and annotates variants)
 
+        // 1. Combine all variant caller outputs
+        // Match different channels by sample id
+        // ---------- normalize channels to tuple(sample_id, file) ----------
+
+        // Varscan2
+        ch_varscan_snp   = VARSCAN_FILTER_SNP.out.varscan_snp_filtered
+        ch_varscan_indel = VARSCAN_FILTER_INDEL.out.varscan_indel_filtered
+
+        // Breakdancer
+        ch_breakd        = BREAKDANCER_FILTER.out.breakdancer_ctx_filtered
+
+        // Delly
+        ch_delly_del = BCF_TO_VCF_DEL.out.vcf_output
+        ch_delly_dup = BCF_TO_VCF_DUP.out.vcf_output
+        ch_delly_ins = BCF_TO_VCF_INS.out.vcf_output
+        ch_delly_inv = BCF_TO_VCF_INV.out.vcf_output
+        // legacy collector expects TRA; workflow uses BND (rename later in stage process).
+        ch_delly_bnd = BCF_TO_VCF_BND.out.vcf_output
+
+        // Pindel
+        ch_pindel_d   = PINDEL2VCF_D.out.pindel_vcf_deletions
+        ch_pindel_si  = PINDEL2VCF_SI.out.pindel_vcf_insertions
+        ch_pindel_inv = PINDEL2VCF_INV.out.pindel_vcf_inversions
+        ch_pindel_td  = PINDEL2VCF_TD.out.pindel_vcf_tandups
+
+        // Lofreq2
+        ch_lofreq = LOFREQ_CALL.out.lofreq_vcf
+
+        // cortex currently emits only path -> recover sample_id from known suffix
+        ch_cortex_raw = CORTEX_CALL.out.cortex_raw_out
+
+        // ---------- group per tool ----------
+        ch_delly = ch_delly_del
+            .join(ch_delly_dup, by: 0)
+            .join(ch_delly_ins, by: 0)
+            .join(ch_delly_bnd, by: 0)   // mapped to your stage input slot "delly_tra_vcf"
+            .join(ch_delly_inv, by: 0)
+            .map { sample_id, del, dup, ins, bnd, inv ->
+                tuple(sample_id, del, dup, ins, bnd, inv)
+            }
+
+        ch_pindel = ch_pindel_d
+            .join(ch_pindel_si, by: 0)
+            .join(ch_pindel_inv, by: 0)
+            .join(ch_pindel_td, by: 0)
+            .map { sample_id, d, si, inv, td ->
+                tuple(sample_id, d, si, inv, td)
+            }
+
+        ch_varscan = ch_varscan_snp
+            .join(ch_varscan_indel, by: 0)
+            .map { sample_id, snp, indel -> tuple(sample_id, snp, indel) }
+
+        // ---------- final stage input ----------
+        ch_stage_collect_input = ch_breakd
+            .join(ch_cortex_raw, by: 0)
+            .join(ch_delly,  by: 0)
+            .join(ch_lofreq, by: 0)
+            .join(ch_pindel, by: 0)
+            .join(ch_varscan, by: 0)
+            .map { sample_id, breakd, cortex_raw, del, dup, ins, bnd, inv, lofreq, pin_d, pin_si, pin_inv, pin_td, snp, indel ->
+                tuple(sample_id, breakd, cortex_raw, del, dup, ins, bnd, inv, lofreq, pin_d, pin_si, pin_inv, pin_td, snp, indel)
+            }
+
+        VARCAP_STAGE_AND_COLLECT(PREPARE_REFERENCE.out.reference_fasta, ch_stage_collect_input)
+
+        // 2. Unify chromosome names as callers handle them differently
+        VARCAP_UNIFY_CHROM_NAMES(VARCAP_STAGE_AND_COLLECT.out.varcap_vcf)
+
+        // 3. Calculate coverage for chromosomes and positions
+        ch_sam_to_vcf = VARCAP_UNIFY_CHROM_NAMES.out.vcf_unified
+                            .join(SAMTOOLS_SORT.out.sorted_bam, by: 0)
+                            .map { sample_id, vcf_file, bam_file ->
+                                tuple(sample_id, vcf_file, bam_file)
+                            }
+
+        VARCAP_CALCULATE_COVERAGE(ch_sam_to_vcf)
+
+        // 4. Search for repetitive elements within the reference genome that are longer than insert size and tag homopolymers
+        VARCAP_BUILD_REPEAT_VCF(PREPARE_REFERENCE.out.reference_fasta)
+
+        VARCAP_TAG_REPEATS(
+            VARCAP_BUILD_REPEAT_VCF.out.ref_repeat_vcf,
+            VARCAP_CALCULATE_COVERAGE.out.vcf_with_cov
+        )
+
+        VARCAP_TAG_HOMOPOLYMERS(
+            PREPARE_REFERENCE.out.reference_fasta,
+            VARCAP_TAG_REPEATS.out.rep_vcf
+        )
+        VARCAP_TAG_SAR(VARCAP_TAG_HOMOPOLYMERS.out.hopo_vcf)
+        VARCAP_TAG_CALLER_POS(VARCAP_TAG_SAR.out.vcf_sar)
+
+        // 5. Apply MRA filter
+        VARCAP_APPLY_MRA_FILTER(VARCAP_TAG_CALLER_POS.out.vcf_cpv)
+        VARCAP_UNIFY_GI_CHROM_NAMES(VARCAP_APPLY_MRA_FILTER.out.vcf_filtered)
+
+        // 6. Generate statistics
+        ch_stats_cov_input = VARCAP_UNIFY_GI_CHROM_NAMES.out.vcf_gi_unified
+            .join(VARCAP_CALCULATE_COVERAGE.out.cov_total, by: 0)
+            .map { sample_id, vcf, total_cov ->
+                tuple(sample_id, vcf, total_cov)
+            }
+
+        VARCAP_STATS_COVERAGE(ch_stats_cov_input)
+        VARCAP_STATS_VARIANT_FREQUENCY(VARCAP_UNIFY_GI_CHROM_NAMES.out.vcf_gi_unified)
+
+
         /*
         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         Variant annotation
         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         */
-        // SnpEff (for SNPs and small indels)
+        // SnpEff: annotate filtered variants with functional consequences.
+        // Input VCF: per-sample output from VARCAP_UNIFY_GI_CHROM_NAMES.
+        // DB inputs: shared across all samples (combine with .combine() not .join()).
+        SNPEFF_BUILD_DB(params.DEFAULT.reference_genome_gbk)
+        SNPEFF_ANNOTATE(
+            VARCAP_UNIFY_GI_CHROM_NAMES.out.vcf_gi_unified,
+            SNPEFF_BUILD_DB.out.db_dir,
+            SNPEFF_BUILD_DB.out.snpeff_config,
+            SNPEFF_BUILD_DB.out.genome_id
+        )
+
+        // Export a flat, R-friendly TSV from the snpEff-annotated VCF.
+        SNPEFF_TABULATE(SNPEFF_ANNOTATE.out.annotated_vcf)
 }

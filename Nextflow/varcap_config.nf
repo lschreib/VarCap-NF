@@ -22,7 +22,7 @@ process {
     the process requires a specific one)
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     */
-    container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v0.1.sif"
+    container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
     //
     //Now follow singularity containers for pipeline steps that require specific containers
 
@@ -32,7 +32,7 @@ process {
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     */
     withName:PREPARE_REFERENCE {
-        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v0.1.sif"
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
     }
 
     withName:INDEX_REFERENCE {
@@ -250,7 +250,7 @@ process {
     }
 
     withName:BREAKDANCER_FILTER {
-        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v0.1.sif" 
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif" 
     }
 
     // Cortex_var
@@ -269,7 +269,81 @@ process {
     withName:CORTEX_CALL {
         container = "file:///$INSTALL_HOME/software/imagefiles/cortex/cortex_v1.0.5.sif"
     }
+
+    /*
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    CONTAINER: Varcap - variant filtering and integration
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    */
+
+    withName:VARCAP_STAGE_AND_COLLECT {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
+    }
+
+    withName:VARCAP_UNIFY_CHROM_NAMES {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
+    }
+
+    withName:VARCAP_CALCULATE_COVERAGE {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
+    }
+
+    withName:VARCAP_BUILD_REPEAT_VCF {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
+    }
+
+    withName:VARCAP_TAG_REPEATS {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
+    }
+
+    withName:VARCAP_TAG_HOMOPOLYMERS {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
+    }
+
+    withName:VARCAP_TAG_SAR {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
+    }
+
+    withName:VARCAP_TAG_CALLER_POS {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
+    }
+
+    withName:VARCAP_APPLY_MRA_FILTER {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
+    }
+
+    withName:VARCAP_UNIFY_GI_CHROM_NAMES {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
+    }
+
+    withName:VARCAP_STATS_COVERAGE {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
+    }
+
+    withName:VARCAP_STATS_VARIANT_FREQUENCY {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
+    }
+
+    /*
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    CONTAINER: Annotation
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    */
+    withName:SNPEFF_BUILD_DB {
+        container = "file:///$INSTALL_HOME/software/imagefiles/snpeff/snpeff_v4.3.sif"
+    }
+
+    withName:SNPEFF_ANNOTATE {
+        container = "file:///$INSTALL_HOME/software/imagefiles/snpeff/snpeff_v4.3.sif"
+    }
+
+    // Doesn't really need a special container since it's just an awk script
+    withName:SNPEFF_TABULATE {
+        container = "file:///$INSTALL_HOME/software/imagefiles/varcap/varcap_v3.0.sif"
+    }
+
 }
+
 
 singularity {
     enabled = true
@@ -598,7 +672,7 @@ params {
     }
 
     cortex_call {
-        cluster_time = 4.h
+        cluster_time = 12.h
         cluster_cpus = 8
         cluster_memory = 32.GB
         auto_cleaning = "yes"
@@ -618,12 +692,80 @@ params {
     CONFIG: VarCap variant filtering
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     */
-    mra_filter {
+    // VarCap parameters shared by multiple processes
+    varcap {
+        min_cpv = 2  // minimum callers per variant; default is 2; setable from 1 (=single caller is enough) to 6 (=has to be detected by all callers).
+        cpv = 2  // caller per variant
+        insert_size = 250
+        snpcountmax = 4
+        maa=8  // MAA minimum absolute abundance (in number of reads)
+        mra=2  // MRA minimum relative abundance (in percent)
+    }
+
+
+    varcap_stage {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+
+    }
+
+    varcap_unify_chrom_names {
         cluster_time = 1.h
         cluster_cpus = 1
         cluster_memory = 4000.MB
-        minimum_absolute_abundance_maa = 8
-        minimum_relative_abundance_mra = 2
+    }
+
+    varcap_calculate_coverage {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+    }
+
+    varcap_build_repeat_vcf {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+    }
+
+    varcap_apply_mra_filter {
+        cluster_time = 4.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+    }
+
+    /*
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    CONFIG: Annotation
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    */
+    snpeff_prepare_db {
+        cluster_time = 12.h
+        cluster_cpus = 8
+        cluster_memory = 32.GB
+        java_xmx = "16g"
+        genome_name = "Reference"
+        codon_table = "Bacterial_and_Plant_Plastid"
+    }
+
+    snpeff_annotate {
+        cluster_time = 4.h
+        cluster_cpus = 4
+        cluster_memory = 16.GB
+        java_xmx = "12g"
+        // Upstream/downstream window in bp for effect reporting.
+        // 0 = strict: only report variants inside annotated features.
+        // Increase (e.g. 300, regulatory regions of genes; 1000, whole promoter regions) to also capture proximal regulatory effects.
+        // NOTE: values greater than 0 could causse errors during the annotation,
+        // due to then overlapping features and the resulting ambiguity in effect assignment.
+        // The original VarCap pipeline used a value of 0.
+        upstream_downstream = 0
+    }
+
+    snpeff_tabulate {
+        cluster_time = 1.h
+        cluster_cpus = 1
+        cluster_memory = 4000.MB
     }
 
 }
@@ -635,7 +777,7 @@ manifest {
     description     = """Nextflow reimplementation of the VarCap pipeline for variant profiling of evolving microbial populations."""
     mainScript      = "varcap_workflow.nf"
     nextflowVersion = "!>=23.04.3"
-    version         = "0.2.0"
+    version         = "1.0.0"
     doi             = "https://doi.org/10.7717/peerj.2997"
 }
 

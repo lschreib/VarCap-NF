@@ -1,4 +1,5 @@
 process CORTEX_CALL {
+    publishDir "$params.DEFAULT.outdir/variant_calling/cortex", mode: 'copy'
     debug true
     //maxForks 1
     scratch false
@@ -15,8 +16,9 @@ process CORTEX_CALL {
         path(ref_k61_ctx)
 
 
-    //output:
-        //path("${sample_id}.log.txt"), emit: cortex_log
+    output:
+        tuple val(sample_id), path("${sample_id}_wk_flow_I_RefCC_FINALcombined_BC_calls_at_all_k.raw.vcf"), emit: cortex_raw_out
+        tuple val(sample_id), path("${sample_id}_wk_flow_I_RefCC_FINALcombined_BC_calls_at_all_k.decomp.vcf"), emit: cortex_decomp_out
 
     script:
         """
@@ -41,7 +43,7 @@ process CORTEX_CALL {
             --last_kmer 61 \\
             --kmer_step 30 \\
             --fastaq_index INDEX \\
-            --minimap2_bin /app_home/minimap2/ \\
+            --minimap2_bin /app_home/minimap2/minimap2 \\
             --auto_cleaning ${params.cortex_call.auto_cleaning} \\
             --bc ${params.cortex_call.make_buble_calls} \\
             --pd ${params.cortex_call.make_pd_calls} \\
@@ -59,5 +61,11 @@ process CORTEX_CALL {
             --ref ${params.cortex_call.ref} \\
             --workflow ${params.cortex_call.workflow} \\
             --logfile ${sample_id}.log.txt
+
+        src="${sample_id}/vcfs/${sample_id}_wk_flow_I_RefCC_FINALcombined_BC_calls_at_all_k.raw.vcf"
+        cp "\$src" . 2>/dev/null || : > "\$(basename "\$src")"
+
+        src="${sample_id}/vcfs/${sample_id}_wk_flow_I_RefCC_FINALcombined_BC_calls_at_all_k.decomp.vcf"
+        cp "\$src" . 2>/dev/null || : > "\$(basename "\$src")"
         """
 }
