@@ -23,3 +23,22 @@ In detail this pipeline will carry out:
 - Variant annotation: [SnpEff](https://pcingola.github.io/SnpEff/)
 
 Integrated supporting modules: [Samtools](https://www.htslib.org/), [Picard](https://broadinstitute.github.io/picard/), [BCFTools](https://samtools.github.io/bcftools/), and [SeqTK](https://github.com/lh3/seqtk)
+
+Software dependencies: Docker, Singularity (>=1.4.2), Nextflow (>=23.04.3), Slurm scheduler
+
+# Usage
+
+1) Build the individual Docker containers and convert them to (Singularity) SIF format
+2) Set up the Nextflow work directory folder on your compute cluster:
+   The directory should contain the following sub-directories:
+   - reads_workdir[dir]: put your illumina paired-end files here
+   - reference_genome[dir]: put your reference genome in GBK format here
+   - modules[dir]: directory containing all individual Nextflow processes; cloned from this repo
+   - varcap_workflow.nf[file]: Nextflow master workflow file
+   - varcap_config.nf[file]: Nextflow config file
+3) Edit the varcap.config file to: (a) have the indidual processes point to the location of the corresponding Singularity container; (b) make sure that the _reference_genome_gbk_ and _raw_reads_ parameters point to the your input files; (c) potentially adjust resource allocation to the size of your dataset.
+4) Run the pipeline with
+
+   ```
+   nextflow run varcap_workflow.nf -c varcap_config.nf [-bg] [-resume] [-with-trace] [| tee log_pipeline_20260410.txt]
+   ```
